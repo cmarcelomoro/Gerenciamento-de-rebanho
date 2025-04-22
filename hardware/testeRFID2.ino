@@ -1,31 +1,38 @@
-#include <HardwareSerial.h>
+#include <SoftwareSerial.h>
 
-HardwareSerial rfid(1); // Usa UART1 do ESP32
+// Inicializa o leitor de RFID nos pinos 3 (RX) e 2 (TX)
+SoftwareSerial RFID(3, -1); // RX e TX
+
+char c;
+String tag = "";
+int bip = 8; // Pino para buzzer
 
 void setup() {
-    Serial.begin(115200);  // Comunicação com PC
-    rfid.begin(9600, SERIAL_8N1, 3, -1);  // Comunicação com RFID (testar outras velocidades se necessário)
-    Serial.println("O RFID Está ativado!");
+  Serial.begin(9600);       // Comunicação com o PC
+  
+  pinMode(bip, OUTPUT);     // Configura o pino do buzzer como saída
+
+  RFID.begin(9600);         // Comunicação com o leitor RFID
 }
 
 void loop() {
-       if (rfid.available() >= 14) {  // Mínimo de bytes esperados
-        uint8_t buffer[14];  // Armazena os bytes recebidos
-        rfid.readBytes(buffer, 14);  // Lê 14 bytes da serial
+  if (RFID.available() > 0) {
+    delay(100);
 
-        // Converte os bytes para hexadecimal e exibe
-        Serial.print("Brinco RFID lido (HEX): ");
-        for (int i = 0; i < 14; i++) {
-            Serial.printf("%02X ", buffer[i]);
-        }
-        Serial.println();
+    // Lê enquanto tiver dados disponíveis
+    while (RFID.available() > 0) {
+      c = RFID.read();
+      tag += c;
 
-        // Extrai o número do brinco (10 bytes, LSB first)
-        char brinco[11];  // 10 caracteres + terminador de string
-        memcpy(brinco, buffer + 1, 10);
-        brinco[10] = '\0';  // Finaliza a string
+      // Exibe também no monitor serial em tempo real
+      Serial.print(c);
 
-        Serial.print("Brinco RFID lido (ASCII): ");
-        Serial.println(brinco);
+      if (c == '\r') Serial.print('\n');
     }
+
+    // Opcional: bip curto ao ler
+    digitalWrite(bip, HIGH);
+    delay(200);
+    digitalWrite(bip, LOW);
+  }
 }
