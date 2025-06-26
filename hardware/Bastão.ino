@@ -1,38 +1,75 @@
-#include <SoftwareSerial.h>
+#include <Rfid134.h>
+#include <Esp.h>
 
-// Inicializa o leitor de RFID nos pinos 3 (RX) e 2 (TX)
-SoftwareSerial RFID(3, -1); // RX e TX
 
-char c;
-String tag = "";
-int bip = 8; // Pino para buzzer
+#define HardwareSerial_Rx 16
+#define HardwareSerial_Tx 17
+const int buzzerPin = 2;
 
-void setup() {
-  Serial.begin(9600);       // Comunicação com o PC
-  
-  pinMode(bip, OUTPUT);     // Configura o pino do buzzer como saída
 
-  RFID.begin(9600);         // Comunicação com o leitor RFID
-}
+uint64_t ID_Number;
 
-void loop() {
-  if (RFID.available() > 0) {
-    delay(100);
+Rfid134<HardwareSerial, RfidNotify> rfid(Serial2);
 
-    // Lê enquanto tiver dados disponíveis
-    while (RFID.available() > 0) {
-      c = RFID.read();
-      tag += c;
-
-      // Exibe também no monitor serial em tempo real
-      Serial.print(c);
-
-      if (c == '\r') Serial.print('\n');
+class RfidNotify
+{
+  public:
+    static void OnError(Rfid134_Error errorCode)
+    {
+      
+      Serial.println();
+      Serial.print("Com Error ");
+      Serial.println(errorCode);
     }
 
-    // Opcional: bip curto ao ler
-    digitalWrite(bip, HIGH);
-    delay(200);
-    digitalWrite(bip, LOW);
-  }
+    static void OnPacketRead(const Rfid134Reading& reading)
+    {
+      char temp[8];
+      
+      Serial.print("TAG: ");
+
+      sprintf(temp, "%03u", reading.country);
+      Serial.print(temp);
+
+      Serial.print(" ");
+    
+      ID_Number = reading.id;
+
+      Serial.println(ID_Number);
+      
+      Serial.println("Ligando Buzzer");
+      
+      if(ID_Number){
+          digitalWrite(buzzerPin, LOW);
+          delay(250);
+          digitalWrite(buzzerPin, HIGH);
+          delay(250);
+          digitalWrite(buzzerPin,LOW);
+      }
+    }
+};
+
+void setup()
+{
+ 
+  Serial.begin(115200);
+
+  Serial.println("initializing...");
+
+
+  Serial.println("Buzzer");
+  pinMode(buzzerPin,OUTPUT);
+  digitalWrite(buzzerPin, LOW);
+
+  Serial2.begin(9600, SERIAL_8N2, HardwareSerial_Rx, HardwareSerial_Tx);
+ 
+  rfid.begin();
+
+  Serial.println("starting...");
+}
+
+void loop()
+{
+    rfid.loop();
+  
 }
